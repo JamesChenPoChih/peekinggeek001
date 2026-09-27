@@ -1,0 +1,10 @@
+.env
+Nebius_Picking_Geek_AI_API.txt
+__pycache__/
+*.py[cod]
+.venv/
+db.sqlite3
+node_modules/
+frontend/.npm-cache/
+dist/
+.pytest_cache/
