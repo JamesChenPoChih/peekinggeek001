@@ -150,3 +150,27 @@ REDIS_URL=redis://redis:6379/0
 Set-Location frontend
 npm run build
 ```
+
+## Render 部署
+
+Django Web Service（Repository Root 保持空白）：
+
+```text
+Build Command: pip install -r requirements.txt && python backend/manage.py collectstatic --no-input && python backend/manage.py migrate
+Start Command: gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:$PORT
+```
+
+必要環境變數：`DATABASE_URL`、`DJANGO_SECRET_KEY`、`DJANGO_DEBUG=false`、
+`DJANGO_ALLOWED_HOSTS=<backend-name>.onrender.com`、
+`CORS_ALLOWED_ORIGINS=https://<frontend-name>.onrender.com`、
+`CSRF_TRUSTED_ORIGINS=https://<frontend-name>.onrender.com`、`NEBIUS_API_KEY`。
+
+React Static Site：
+
+```text
+Root Directory: frontend
+Build Command: npm ci && npm run build
+Publish Directory: dist
+```
+
+前端建置環境變數：`VITE_API_BASE_URL=https://<backend-name>.onrender.com/api`。

@@ -7,4 +7,5 @@ db.sqlite3
 node_modules/
 frontend/.npm-cache/
 dist/
+staticfiles/
 .pytest_cache/
