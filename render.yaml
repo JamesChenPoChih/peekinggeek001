@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: peekinggeek001-api
+    runtime: python
+    plan: free
+    autoDeployTrigger: commit
+    buildCommand: pip install -r requirements.txt && python backend/manage.py collectstatic --no-input && python backend/manage.py migrate
+    startCommand: python -m gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:$PORT --timeout 180 --access-logfile - --error-logfile -
+    healthCheckPath: /health/
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://peekinggeek001.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://peekinggeek001.onrender.com
+      - key: NEBIUS_API_KEY
+        sync: false
+      - key: NEBIUS_BASE_URL
+        value: https://api.tokenfactory.nebius.com/v1
+      - key: JOB_WEBHOOK_SECRET
+        generateValue: true

@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from config.views import health_check, service_status
 from marketpulse.api import (
     StockViewSet,
     UserStockViewSet,
@@ -20,6 +21,8 @@ router.register("stocks", StockViewSet, basename="stock")
 router.register("watchlist", UserStockViewSet, basename="watchlist")
 
 urlpatterns = [
+    path("", service_status, name="service-status"),
+    path("health/", health_check, name="health-check"),
     path("admin/", admin.site.urls),
     path("api/auth/token/", TokenObtainPairView.as_view()),
     path("api/auth/token/refresh/", TokenRefreshView.as_view()),

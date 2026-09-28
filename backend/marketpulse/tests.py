@@ -10,6 +10,18 @@ from .models import NotificationQueue, Stock, TechnicalIndicatorCache, User, Use
 from .services.llm_router import LLMRouter, NANO_MODEL, ULTRA_MODEL
 
 
+class RenderDeploymentTests(TestCase):
+    def test_root_reports_service_status(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["service"], "PickingGeek API")
+
+    def test_health_check_verifies_database(self):
+        response = self.client.get("/health/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "healthy", "database": "connected"})
+
+
 class TierLimitTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="free", password="test", tier=User.Tier.FREE)

@@ -153,17 +153,20 @@ npm run build
 
 ## Render 部署
 
-Django Web Service（Repository Root 保持空白）：
+Django Web Service（建議名稱 `peekinggeek001-api`，Repository Root 保持空白）：
 
 ```text
 Build Command: pip install -r requirements.txt && python backend/manage.py collectstatic --no-input && python backend/manage.py migrate
-Start Command: gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:$PORT
+Start Command: python -m gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:$PORT --timeout 180 --access-logfile - --error-logfile -
+Health Check Path: /health/
 ```
 
-必要環境變數：`DATABASE_URL`、`DJANGO_SECRET_KEY`、`DJANGO_DEBUG=false`、
-`DJANGO_ALLOWED_HOSTS=<backend-name>.onrender.com`、
-`CORS_ALLOWED_ORIGINS=https://<frontend-name>.onrender.com`、
-`CSRF_TRUSTED_ORIGINS=https://<frontend-name>.onrender.com`、`NEBIUS_API_KEY`。
+必要環境變數：`DJANGO_SECRET_KEY`、`DJANGO_DEBUG=false`、
+`CORS_ALLOWED_ORIGINS=https://peekinggeek001.onrender.com`、
+`CSRF_TRUSTED_ORIGINS=https://peekinggeek001.onrender.com`、`NEBIUS_API_KEY`。
+Render 會自動提供 `RENDER_EXTERNAL_HOSTNAME`，Django 會將它加入 `ALLOWED_HOSTS`。
+
+`DATABASE_URL` 目前可以不設定，Django 會使用 SQLite，適合先驗證部署流程；Render 的本機檔案不是永久儲存，正式保存帳號與自選股前應建立 Render PostgreSQL，並將 Internal Database URL 設為 `DATABASE_URL`。
 
 React Static Site：
 
@@ -174,3 +177,5 @@ Publish Directory: dist
 ```
 
 前端建置環境變數：`VITE_API_BASE_URL=https://<backend-name>.onrender.com/api`。
+
+專案根目錄的 `render.yaml` 也可用來建立 Render Blueprint。部署完成後，後端根網址會回傳服務狀態 JSON，`/health/` 會同時檢查 Django 與資料庫連線。Render 會自動提供 `RENDER_EXTERNAL_HOSTNAME`，不需要再把預設的 `onrender.com` 主機名稱硬編碼進 Django。
