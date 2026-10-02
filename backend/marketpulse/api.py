@@ -4,17 +4,81 @@ import secrets
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.db import transaction
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import NotificationQueue, Stock, TechnicalIndicatorCache, UserStock
+from .models import NotificationQueue, Stock, TechnicalIndicatorCache, User, UserStock
 from .serializers import IndicatorSerializer, StockSerializer, UserStockSerializer
 from .services.llm_router import LLMRouter
 from .services.yahoo_finance import YahooFinanceError, enrich_market_assets, get_market_asset, get_price_chart, search_market_assets
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def google_login(request):
+    client_id = settings.GOOGLE_OAUTH_CLIENT_ID
+    credential = str(request.data.get("credential", "")).strip()
+    if not client_id:
+        return Response(
+            {"detail": "Google 登入尚未完成伺服器設定。"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    if not credential:
+        return Response({"detail": "缺少 Google 登入憑證。"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        identity = google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            client_id,
+        )
+    except ValueError:
+        return Response({"detail": "Google 登入憑證無效或已過期。"}, status=status.HTTP_400_BAD_REQUEST)
+
+    subject = str(identity.get("sub", "")).strip()
+    email = str(identity.get("email", "")).strip().lower()
+    if not subject or not email or identity.get("email_verified") is not True:
+        return Response({"detail": "Google 帳號資料未通過驗證。"}, status=status.HTTP_400_BAD_REQUEST)
+
+    defaults = {
+        "username": f"google_{subject}"[:150],
+        "email": email,
+        "first_name": str(identity.get("given_name", ""))[:150],
+        "last_name": str(identity.get("family_name", ""))[:150],
+        "avatar_url": str(identity.get("picture", "")),
+    }
+    with transaction.atomic():
+        user, created = User.objects.get_or_create(google_subject=subject, defaults=defaults)
+        if created:
+            user.set_unusable_password()
+        else:
+            user.email = defaults["email"]
+            user.first_name = defaults["first_name"]
+            user.last_name = defaults["last_name"]
+            user.avatar_url = defaults["avatar_url"]
+        user.save()
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+        "user": {
+            "name": user.get_full_name() or user.email,
+            "email": user.email,
+            "avatar": user.avatar_url,
+            "tier": user.tier,
+        },
+    })
 
 
 class StockViewSet(viewsets.ReadOnlyModelViewSet):

@@ -129,6 +129,7 @@ REDIS_URL=redis://redis:6379/0
 | Method | Endpoint | 用途 |
 | --- | --- | --- |
 | `POST` | `/api/auth/token/` | 取得 JWT |
+| `POST` | `/api/auth/google/` | 驗證 Google ID token 並取得 JWT |
 | `GET` | `/api/stocks/` | 搜尋股票與最新指標 |
 | `GET/POST/DELETE` | `/api/watchlist/` | 管理自選股與方案限制 |
 | `GET` | `/api/stocks/{id}/indicator/` | 讀取技術指標 |
@@ -177,5 +178,14 @@ Publish Directory: dist
 ```
 
 前端建置環境變數：`VITE_API_BASE_URL=https://<backend-name>.onrender.com/api`。
+
+## Google OAuth 登入
+
+1. 在 Google Cloud Console 建立 OAuth 2.0 Client，Application type 選擇 `Web application`。
+2. Authorized JavaScript origins 加入 `http://localhost:5173` 與正式前端 `https://peekinggeekai001.onrender.com`。目前使用 Google Identity Services 的 popup callback，不需要設定 redirect URI。
+3. 將同一個 Web Client ID 設定到 Django Web Service 的 `GOOGLE_OAUTH_CLIENT_ID`，以及 React Static Site 的 `VITE_GOOGLE_CLIENT_ID`。
+4. Google OAuth consent screen 若仍為 Testing，須把要登入的 Google 帳號加入 Test users。
+
+後端只接受 Google 驗證過且 `email_verified=true` 的 ID token，並以不可變的 Google `sub` 作為帳號識別；React 不保存 Google token，只保存 Django 簽發的 JWT。
 
 專案根目錄的 `render.yaml` 也可用來建立 Render Blueprint。部署完成後，後端根網址會回傳服務狀態 JSON，`/health/` 會同時檢查 Django 與資料庫連線。Render 會自動提供 `RENDER_EXTERNAL_HOSTNAME`，不需要再把預設的 `onrender.com` 主機名稱硬編碼進 Django。

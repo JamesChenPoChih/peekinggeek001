@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, LockKeyhole, TrendingUp } from "lucide-react";
 
-import { login, type AuthTokens } from "../../api";
+import { login, loginWithGoogle, type AuthTokens } from "../../api";
 import { useLanguage } from "../../i18n";
 
 interface LoginScreenProps {
@@ -10,10 +10,72 @@ interface LoginScreenProps {
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const { t } = useLanguage();
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
   const [username, setUsername] = useState("demo");
   const [password, setPassword] = useState("demo1234");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    if (!googleClientId) return;
+    let disposed = false;
+    let resizeObserver: ResizeObserver | undefined;
+
+    const renderGoogleButton = () => {
+      const target = googleButtonRef.current;
+      if (disposed || !target || !window.google) return;
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async ({ credential }) => {
+          setGoogleLoading(true);
+          setError("");
+          try {
+            onLogin(await loginWithGoogle(credential));
+          } catch (loginError) {
+            setError(loginError instanceof Error ? loginError.message : t("googleLoginFailed"));
+          } finally {
+            setGoogleLoading(false);
+          }
+        },
+      });
+      const draw = () => {
+        if (!googleButtonRef.current || !window.google) return;
+        googleButtonRef.current.replaceChildren();
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          shape: "rectangular",
+          text: "signin_with",
+          width: Math.max(200, Math.floor(googleButtonRef.current.clientWidth)),
+        });
+      };
+      draw();
+      resizeObserver = new ResizeObserver(draw);
+      resizeObserver.observe(target);
+    };
+
+    const existing = document.getElementById("google-identity-services") as HTMLScriptElement | null;
+    if (window.google) renderGoogleButton();
+    else if (existing) existing.addEventListener("load", renderGoogleButton, { once: true });
+    else {
+      const script = document.createElement("script");
+      script.id = "google-identity-services";
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.addEventListener("load", renderGoogleButton, { once: true });
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      disposed = true;
+      resizeObserver?.disconnect();
+      existing?.removeEventListener("load", renderGoogleButton);
+    };
+  }, [googleClientId, onLogin, t]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,6 +141,20 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             {!loading && <ArrowRight size={17} aria-hidden="true" />}
           </button>
         </form>
+
+        {googleClientId && (
+          <div className="mt-6">
+            <div className="mb-4 flex items-center gap-3" aria-hidden="true">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span className="text-[11px] font-semibold text-slate-400">{t("or")}</span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+            <div className={googleLoading ? "pointer-events-none opacity-60" : ""}>
+              <div ref={googleButtonRef} className="min-h-10 w-full overflow-hidden" />
+            </div>
+            {googleLoading && <p className="mt-2 text-center text-xs text-slate-500">{t("googleLoggingIn")}</p>}
+          </div>
+        )}
       </div>
 
       <div className="mt-10 flex items-center justify-center gap-2 text-xs text-slate-400">

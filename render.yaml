@@ -13,9 +13,11 @@ services:
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: CORS_ALLOWED_ORIGINS
-        value: https://peekinggeek001.onrender.com
+        value: https://peekinggeek001.onrender.com,https://peekinggeekai001.onrender.com
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://peekinggeek001.onrender.com
+        value: https://peekinggeek001.onrender.com,https://peekinggeekai001.onrender.com
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
       - key: NEBIUS_API_KEY
         sync: false
       - key: NEBIUS_BASE_URL

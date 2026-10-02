@@ -9,6 +9,8 @@ class User(AbstractUser):
         PRO = "PRO", "Pro"
 
     tier = models.CharField(max_length=8, choices=Tier.choices, default=Tier.FREE)
+    google_subject = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    avatar_url = models.URLField(max_length=500, blank=True)
 
     @property
     def can_track_unlimited_stocks(self):

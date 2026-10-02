@@ -22,6 +22,38 @@ class RenderDeploymentTests(TestCase):
         self.assertEqual(response.json(), {"status": "healthy", "database": "connected"})
 
 
+class GoogleLoginTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    @override_settings(GOOGLE_OAUTH_CLIENT_ID="web-client-id.apps.googleusercontent.com")
+    @patch("marketpulse.api.google_id_token.verify_oauth2_token")
+    def test_google_login_creates_user_and_returns_jwt(self, verify_mock):
+        verify_mock.return_value = {
+            "sub": "google-account-123",
+            "email": "investor@example.com",
+            "email_verified": True,
+            "given_name": "Market",
+            "family_name": "Investor",
+            "picture": "https://example.com/avatar.jpg",
+        }
+
+        response = self.client.post("/api/auth/google/", {"credential": "valid-id-token"}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        user = User.objects.get(google_subject="google-account-123")
+        self.assertEqual(user.email, "investor@example.com")
+        self.assertFalse(user.has_usable_password())
+
+    @override_settings(GOOGLE_OAUTH_CLIENT_ID="web-client-id.apps.googleusercontent.com")
+    @patch("marketpulse.api.google_id_token.verify_oauth2_token", side_effect=ValueError)
+    def test_google_login_rejects_invalid_token(self, _verify_mock):
+        response = self.client.post("/api/auth/google/", {"credential": "invalid"}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+
 class TierLimitTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="free", password="test", tier=User.Tier.FREE)

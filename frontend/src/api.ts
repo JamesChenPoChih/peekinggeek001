@@ -45,6 +45,19 @@ export async function login(username: string, password: string): Promise<AuthTok
   return response.json();
 }
 
+export async function loginWithGoogle(credential: string): Promise<AuthTokens> {
+  const response = await fetch(`${API_BASE}/auth/google/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credential }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as { detail?: string };
+    throw new Error(payload.detail || `Google sign-in responded ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function fetchStocks(token: string): Promise<StockApiResponse[]> {
   const response = await authorizedFetch(`${API_BASE}/stocks/`, token);
   if (!response.ok) throw new Error(`股票 API 回應 ${response.status}`);
